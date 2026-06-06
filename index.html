@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TTS Studio">
+<meta name="theme-color" content="#080808">
+<title>TTS Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#080808;--surface:#101010;--card:#161616;--border:#242424;
+    --pink:#ff2d55;--cyan:#00e5ff;--yellow:#ffee00;--green:#00ff88;
+    --text:#f0f0f0;--muted:#555;--muted2:#888}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 14px 120px}
+  body::before{content:'';position:fixed;top:-150px;left:-150px;width:420px;height:420px;
+    background:radial-gradient(circle,rgba(255,45,85,.09) 0%,transparent 70%);pointer-events:none;z-index:0}
+  body::after{content:'';position:fixed;bottom:-150px;right:-150px;width:420px;height:420px;
+    background:radial-gradient(circle,rgba(0,229,255,.07) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+  .header{text-align:center;margin-bottom:24px;position:relative;z-index:1}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(42px,11vw,70px);letter-spacing:3px;line-height:1;
+    background:linear-gradient(135deg,var(--pink) 0%,#ff8c00 50%,var(--cyan) 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .tagline{color:var(--muted2);font-size:11px;letter-spacing:3.5px;text-transform:uppercase;margin-top:4px}
+  .badge{display:inline-flex;align-items:center;gap:6px;margin-top:9px;
+    background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.2);
+    border-radius:20px;padding:5px 14px;font-size:11px;color:var(--green);font-weight:600}
+  .badge::before{content:'●';font-size:8px;animation:blink 1.5s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .app{width:100%;max-width:620px;position:relative;z-index:1;display:flex;flex-direction:column;gap:13px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px 20px}
+  .sec-label{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:13px}
+
+  /* Notice */
+  .notice{background:rgba(255,238,0,.06);border:1px solid rgba(255,238,0,.2);
+    border-radius:14px;padding:16px 18px;font-size:12px;line-height:1.7;color:rgba(255,238,0,.85)}
+  .notice b{color:var(--yellow);display:block;margin-bottom:4px;font-size:13px}
+  .notice code{background:rgba(255,255,255,.08);padding:2px 7px;border-radius:4px;
+    font-family:monospace;font-size:11px;color:#fff}
+  .notice a{color:var(--cyan);text-decoration:none;font-weight:600}
+
+  /* Steps */
+  .steps{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .step{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--muted2)}
+  .step-num{background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.2);color:var(--cyan);
+    width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px}
+
+  /* Loading */
+  .load-card{text-align:center;padding:28px 20px}
+  .load-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--cyan);margin-bottom:8px}
+  .load-sub{font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:18px}
+  .load-bar-wrap{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:8px}
+  .load-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--pink),var(--cyan));border-radius:2px;transition:width .4s ease}
+  .load-pct{font-size:11px;color:var(--muted2)}
+
+  /* Voice grid */
+  .gender-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+    padding:4px 9px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;
+    width:fit-content;margin-bottom:8px}
+  .gender-label.f{color:var(--pink);background:rgba(255,45,85,.1)}
+  .gender-label.m{color:var(--cyan);background:rgba(0,229,255,.1)}
+  .voice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:7px}
+  .vcard{background:var(--surface);border:1.5px solid var(--border);border-radius:11px;
+    padding:11px 10px;cursor:pointer;transition:all .18s;position:relative;user-select:none}
+  .vcard:active{transform:scale(.96)}
+  .vcard:hover{border-color:rgba(255,255,255,.15)}
+  .vcard.sel-f{border-color:var(--pink);background:rgba(255,45,85,.1)}
+  .vcard.sel-m{border-color:var(--cyan);background:rgba(0,229,255,.1)}
+  .vcard-name{font-size:13px;font-weight:600;margin-bottom:2px}
+  .vcard-desc{font-size:10px;color:var(--muted2);line-height:1.35}
+  .vcard-tag{position:absolute;top:6px;right:6px;font-size:8px;font-weight:700;
+    letter-spacing:.8px;text-transform:uppercase;padding:2px 5px;border-radius:3px}
+  .vcard-tag.f{background:rgba(255,45,85,.18);color:var(--pink)}
+  .vcard-tag.m{background:rgba(0,229,255,.18);color:var(--cyan)}
+  .vcard .tick{position:absolute;bottom:6px;right:8px;font-size:10px;opacity:0;transition:opacity .15s}
+  .vcard.sel-f .tick,.vcard.sel-m .tick{opacity:1}
+
+  textarea{width:100%;background:var(--surface);border:1.5px solid var(--border);
+    border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;
+    font-size:15px;line-height:1.65;padding:13px 15px;resize:vertical;min-height:120px;
+    outline:none;transition:border-color .2s}
+  textarea:focus{border-color:rgba(255,255,255,.22)}
+  .char-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+  .char-count{font-size:11px;color:var(--muted)}
+  .char-count.warn{color:var(--yellow)}
+  .char-count.over{color:var(--pink)}
+  .tips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .tip{background:var(--surface);border:1px solid var(--border);border-radius:20px;
+    padding:5px 11px;font-size:11px;color:var(--muted2);cursor:pointer;transition:all .15s}
+  .tip:hover{border-color:var(--yellow);color:var(--yellow);background:rgba(255,238,0,.05)}
+
+  .sl{display:flex;flex-direction:column;gap:5px}
+  .sl-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .sl-label b{color:var(--text);font-weight:500}
+  .sl-label span{font-size:9px;color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none}
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:3px;
+    border-radius:2px;background:var(--border);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
+    border-radius:50%;background:var(--text);cursor:pointer;box-shadow:0 0 4px rgba(0,0,0,.4)}
+
+  .action-row{display:grid;grid-template-columns:1fr auto;gap:10px}
+  .speak-btn{padding:16px;border-radius:13px;border:none;
+    background:linear-gradient(135deg,var(--pink),#ff8c00);color:#fff;
+    font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:2.5px;
+    cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:9px}
+  .speak-btn:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,45,85,.35)}
+  .speak-btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed}
+  .speak-btn.running{background:linear-gradient(135deg,#ff8c00,var(--pink));animation:pulse-btn 1.3s ease-in-out infinite}
+  @keyframes pulse-btn{0%,100%{box-shadow:0 0 0 0 rgba(255,45,85,.5)}50%{box-shadow:0 0 0 14px rgba(255,45,85,0)}}
+  .dl-btn{padding:16px 19px;border-radius:13px;border:1.5px solid var(--border);
+    background:transparent;color:var(--muted);font-family:'Bebas Neue',sans-serif;
+    font-size:21px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center}
+  .dl-btn:disabled{opacity:.3;cursor:not-allowed}
+  .dl-btn.ready{border-color:var(--yellow);color:var(--yellow);animation:glow-y 1.5s ease-in-out infinite}
+  @keyframes glow-y{0%,100%{box-shadow:0 0 0 0 rgba(255,238,0,.4)}50%{box-shadow:0 0 10px 2px rgba(255,238,0,.1)}}
+  .dl-btn:not(:disabled):hover{transform:translateY(-2px)}
+
+  .status{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;font-size:12px;color:var(--muted2);min-height:42px;transition:all .3s}
+  .status.running{border-color:var(--cyan);color:var(--cyan)}
+  .status.playing{border-color:var(--pink);color:var(--text)}
+  .status.done{border-color:var(--green);color:var(--green)}
+  .status.err{border-color:var(--pink);color:var(--pink)}
+  .stop-btn{background:none;border:1px solid var(--pink);color:var(--pink);
+    padding:3px 9px;border-radius:5px;font-size:10px;font-weight:700;
+    letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:none}
+  .stop-btn.show{display:block}
+  .stop-btn:hover{background:var(--pink);color:#fff}
+  .waveform{display:flex;align-items:center;gap:2px;height:18px;opacity:0;transition:opacity .3s}
+  .waveform.on{opacity:1}
+  .waveform i{width:3px;border-radius:2px;background:var(--pink);display:block;animation:wv .8s ease-in-out infinite}
+  .waveform i:nth-child(even){background:var(--cyan)}
+  .waveform i:nth-child(1){animation-delay:0s}.waveform i:nth-child(2){animation-delay:.1s}
+  .waveform i:nth-child(3){animation-delay:.2s}.waveform i:nth-child(4){animation-delay:.3s}
+  .waveform i:nth-child(5){animation-delay:.4s}.waveform i:nth-child(6){animation-delay:.3s}
+  .waveform i:nth-child(7){animation-delay:.2s}.waveform i:nth-child(8){animation-delay:.1s}
+  @keyframes wv{0%,100%{height:3px}50%{height:16px}}
+  .spinner{width:17px;height:17px;border:2px solid rgba(255,255,255,.15);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  audio{width:100%;border-radius:11px;display:none;margin-top:2px}
+  audio.show{display:block}
+
+  /* Install banner */
+  #install-banner{display:none;position:fixed;bottom:0;left:0;right:0;z-index:999;
+    background:#161616;border-top:1px solid #2a2a2a;
+    padding:14px 18px;align-items:center;justify-content:space-between;gap:12px}
+  .ib-text{font-size:13px;line-height:1.4}
+  .ib-title{font-weight:600;color:#f0f0f0}
+  .ib-sub{color:#888;font-size:11px}
+  .ib-btns{display:flex;gap:8px;flex-shrink:0}
+  .ib-dismiss{background:none;border:1px solid #333;color:#888;
+    padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer}
+  .ib-install{background:linear-gradient(135deg,#ff2d55,#ff8c00);border:none;color:#fff;
+    padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- Password Gate -->
+<div id="pw-gate" style="
+  position:fixed;inset:0;z-index:9999;background:#080808;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px;
+">
+  <div style="width:100%;max-width:340px;text-align:center">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:3px;
+      background:linear-gradient(135deg,#ff2d55,#ff8c00,#00e5ff);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+      margin-bottom:6px">TTS Studio</div>
+    <div style="color:#555;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:36px">
+      Private Access Only</div>
+
+    <div style="background:#161616;border:1px solid #242424;border-radius:16px;padding:24px">
+      <div style="font-size:13px;color:#888;margin-bottom:16px">Enter your password to continue</div>
+
+      <input type="password" id="pw-input" placeholder="Password"
+        onkeydown="if(event.key==='Enter')checkPw()"
+        style="width:100%;background:#101010;border:1.5px solid #242424;border-radius:10px;
+        color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:15px;
+        padding:13px 15px;outline:none;margin-bottom:10px;
+        -webkit-text-security:disc">
+
+      <div id="pw-err" style="color:#ff2d55;font-size:11px;margin-bottom:10px;display:none">
+        ⚠ Incorrect password
+      </div>
+
+      <button onclick="checkPw()" style="
+        width:100%;padding:14px;border-radius:11px;border:none;
+        background:linear-gradient(135deg,#ff2d55,#ff8c00);
+        color:#fff;font-family:'Bebas Neue',sans-serif;font-size:20px;
+        letter-spacing:2px;cursor:pointer">
+        UNLOCK
+      </button>
+    </div>
+
+    <div style="color:#333;font-size:10px;margin-top:20px">
+      Your personal TTS Studio
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SET YOUR PASSWORD HERE ──────────────────────
+const APP_PASSWORD = 'ttstudio2024';
+// ───────────────────────────────────────────────
+
+function checkPw() {
+  const val = document.getElementById('pw-input').value;
+  const err = document.getElementById('pw-err');
+  if (val === APP_PASSWORD) {
+    // Save session so you don't re-enter every time
+    sessionStorage.setItem('tts_auth', '1');
+    document.getElementById('pw-gate').style.display = 'none';
+    document.getElementById('pw-input').value = '';
+  } else {
+    err.style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+    // Shake animation
+    const gate = document.getElementById('pw-gate').querySelector('div > div:nth-child(2)');
+    gate.style.animation = 'none';
+    gate.style.transform = 'translateX(-8px)';
+    setTimeout(() => { gate.style.transform = 'translateX(8px)'; }, 80);
+    setTimeout(() => { gate.style.transform = 'translateX(0)'; }, 160);
+  }
+}
+
+// Skip gate if already authenticated this session
+if (sessionStorage.getItem('tts_auth') === '1') {
+  document.getElementById('pw-gate').style.display = 'none';
+}
+
+// Auto-focus password field
+window.addEventListener('load', () => {
+  const gate = document.getElementById('pw-gate');
+  if (gate.style.display !== 'none') {
+    document.getElementById('pw-input').focus();
+  }
+});
+</script>
+
+<div class="header">
+  <div class="logo">TTS Studio</div>
+  <div class="tagline">Powered by Kokoro AI · TikTok Ready</div>
+  <div class="badge">100% FREE · No Login · Runs In Your Browser</div>
+</div>
+
+<div class="app" id="app">
+
+  <!-- How to open correctly -->
+  <div class="notice" id="file-notice">
+    <b>⚠ Open this via a web link for best results</b>
+    This app needs to load an AI model from the internet.
+    Opening from a local file may block it on Android.<br><br>
+    <b style="color:var(--cyan);display:inline">Easiest fix — host it free on GitHub Pages:</b>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><span>Go to <a href="https://github.com" target="_blank">github.com</a> → New repository → name it <code>tts-studio</code></span></div>
+      <div class="step"><div class="step-num">2</div><span>Upload this HTML file → rename it <code>index.html</code></span></div>
+      <div class="step"><div class="step-num">3</div><span>Settings → Pages → Branch: main → Save</span></div>
+      <div class="step"><div class="step-num">4</div><span>Visit <code>yourusername.github.io/tts-studio</code> — done!</span></div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,238,0,.15)">
+      If it loaded fine, tap <b style="color:var(--green)">✕ Dismiss</b> and continue.
+    </div>
+    <button onclick="document.getElementById('file-notice').style.display='none'" style="
+      margin-top:10px;width:100%;padding:9px;border-radius:8px;
+      border:1px solid rgba(0,229,255,.3);background:transparent;
+      color:var(--cyan);font-size:12px;font-weight:600;cursor:pointer">
+      ✕ Dismiss — App loaded fine
+    </button>
+  </div>
+
+  <!-- Model loading -->
+  <div class="card load-card" id="load-card">
+    <div class="load-title">⚡ LOADING AI MODEL</div>
+    <div class="load-sub">Kokoro TTS is downloading to your device.<br>First load ~45MB on WiFi · instant after that.</div>
+    <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+    <div class="load-pct" id="load-pct">Initializing...</div>
+  </div>
+
+  <!-- Voice picker -->
+  <div class="card" id="voice-card" style="display:none">
+    <div class="sec-label">Choose Voice</div>
+    <div class="gender-label f">♀ Female</div>
+    <div class="voice-grid" style="margin-bottom:14px" id="female-grid"></div>
+    <div class="gender-label m">♂ Male</div>
+    <div class="voice-grid" id="male-grid"></div>
+  </div>
+
+  <!-- Script -->
+  <div class="card" id="script-card" style="display:none">
+    <div class="sec-label">Your Script</div>
+    <textarea id="txt" placeholder="Type your TikTok script here... 🎬" maxlength="500"></textarea>
+    <div class="char-row">
+      <div class="char-count" id="cc">0 / 500</div>
+      <div class="waveform" id="waveform"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="tips">
+      <div class="tip" onclick="tip('Wait for it...')">Wait for it...</div>
+      <div class="tip" onclick="tip('POV:')">POV</div>
+      <div class="tip" onclick="tip('Did you know that')">Did you know</div>
+      <div class="tip" onclick="tip('No one talks about this.')">No one talks about this</div>
+      <div class="tip" onclick="tip('Watch until the end!')">Watch til end</div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card" id="settings-card" style="display:none">
+    <div class="sec-label">Voice Settings</div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="sl">
+        <div class="sl-label">Speed <b id="speed-val">1.00x</b></div>
+        <input type="range" id="speed" min="0.5" max="2" step="0.05" value="1"
+          oninput="document.getElementById('speed-val').textContent=parseFloat(this.value).toFixed(2)+'x'">
+      </div>
+      <div class="sl">
+        <div class="sl-label">Clarity <b id="clarity-val">50%</b> <span>Sharpens voice presence</span></div>
+        <input type="range" id="clarity" min="0" max="100" value="50"
+          oninput="document.getElementById('clarity-val').textContent=this.value+'%'">
+      </div>
+      <div class="sl">
+        <div class="sl-label">Stability <b id="stability-val">50%</b> <span>Reduces noise &amp; variance</span></div>
+        <input type="range" id="stability" min="0" max="100" value="50"
+          oninput="document.getElementById('stability-val').textContent=this.value+'%'">
+      </div>
+    </div>
+  </div>
+
+  <audio id="player" controls></audio>
+
+  <div class="action-row" id="action-row" style="display:none">
+    <button class="speak-btn" id="speak-btn" onclick="generate()">
+      <div class="spinner" id="spinner"></div>
+      <span id="bicon">▶</span><span id="btxt">GENERATE</span>
+    </button>
+    <button class="dl-btn" id="dl-btn" onclick="dlAudio()" disabled>↓</button>
+  </div>
+
+  <div class="status" id="status" style="display:none">
+    <span id="stxt">Ready!</span>
+    <button class="stop-btn" id="stop-btn" onclick="stopAudio()">■ STOP</button>
+  </div>
+
+</div>
+
+<!-- Install banner -->
+<div id="install-banner">
+  <div class="ib-text">
+    <div class="ib-title">Install TTS Studio</div>
+    <div class="ib-sub">Add to home screen — works offline</div>
+  </div>
+  <div class="ib-btns">
+    <button class="ib-dismiss" onclick="dismissInstall()">Not now</button>
+    <button class="ib-install" onclick="installApp()">Install ✦</button>
+  </div>
+</div>
+
+<script type="module">
+import { KokoroTTS } from 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.0/+esm';
+
+const FEMALE_VOICES = [
+  {id:'af_heart',  name:'Heart',   desc:'Warm · American'},
+  {id:'af_bella',  name:'Bella',   desc:'Expressive · American'},
+  {id:'af_sarah',  name:'Sarah',   desc:'Friendly · American'},
+  {id:'af_nicole', name:'Nicole',  desc:'Soft · American'},
+  {id:'af_sky',    name:'Sky',     desc:'Bright · American'},
+  {id:'bf_emma',   name:'Emma',    desc:'Elegant · British'},
+];
+const MALE_VOICES = [
+  {id:'am_adam',    name:'Adam',    desc:'Deep · American'},
+  {id:'am_echo',    name:'Echo',    desc:'Clear · American'},
+  {id:'am_eric',    name:'Eric',    desc:'Confident · American'},
+  {id:'am_liam',    name:'Liam',    desc:'Warm · American'},
+  {id:'am_michael', name:'Michael', desc:'Rich · American'},
+  {id:'bm_george',  name:'George',  desc:'Authority · British'},
+];
+
+let tts = null, selVoice = 'af_heart', selName = 'Heart';
+let audioBlob = null, audioUrl = null, currentAudio = null;
+
+// Build voice cards
+function buildGrid(voices, gender, containerId) {
+  const grid = document.getElementById(containerId);
+  voices.forEach((v, i) => {
+    const d = document.createElement('div');
+    d.className = 'vcard' + (gender==='f' && i===0 ? ' sel-f' : '');
+    d.id = 'v-' + v.id;
+    d.innerHTML = `<span class="vcard-tag ${gender}">${gender==='f'?'F':'M'}</span>
+      <div class="vcard-name">${v.name}</div><div class="vcard-desc">${v.desc}</div>
+      <span class="tick">✓</span>`;
+    d.onclick = () => selectVoice(v.id, v.name, gender);
+    grid.appendChild(d);
+  });
+}
+buildGrid(FEMALE_VOICES, 'f', 'female-grid');
+buildGrid(MALE_VOICES,   'm', 'male-grid');
+
+function selectVoice(id, name, g) {
+  document.querySelectorAll('.vcard').forEach(c => c.classList.remove('sel-f','sel-m'));
+  selVoice = id; selName = name;
+  const card = document.getElementById('v-' + id);
+  if (card) card.classList.add('sel-' + g);
+  setStatus('Voice: ' + name, '');
+}
+
+// Textarea
+const txt = document.getElementById('txt');
+txt.addEventListener('input', () => {
+  const l = txt.value.length;
+  const el = document.getElementById('cc');
+  el.textContent = l + ' / 500';
+  el.className = 'char-count' + (l>450?' over':l>380?' warn':'');
+});
+window.tip = (t) => {
+  const s = txt.selectionStart;
+  const before = txt.value.slice(0,s), after = txt.value.slice(txt.selectionEnd);
+  const ins = (before && !before.endsWith(' ') ? ' ':'') + t + ' ';
+  txt.value = before + ins + after;
+  txt.dispatchEvent(new Event('input'));
+  txt.focus(); txt.selectionStart = txt.selectionEnd = s + ins.length;
+};
+
+// Status / btn helpers
+function setStatus(msg, state) {
+  const s = document.getElementById('status');
+  s.style.display = 'flex';
+  document.getElementById('stxt').textContent = msg;
+  s.className = 'status' + (state ? ' '+state : '');
+  document.getElementById('stop-btn').className = 'stop-btn' + (state==='playing'?' show':'');
+  document.getElementById('waveform').className  = 'waveform'  + (state==='playing'?' on':'');
+}
+function setBtn(state) {
+  const btn=document.getElementById('speak-btn'),sp=document.getElementById('spinner'),
+        ic=document.getElementById('bicon'),bt=document.getElementById('btxt');
+  btn.className = 'speak-btn' + (state?' '+state:'');
+  btn.disabled = state==='running';
+  sp.style.display = state==='running'?'block':'none';
+  ic.style.display  = state==='running'?'none':'inline';
+  if(state==='running')      {bt.textContent='GENERATING...'; }
+  else if(state==='playing') {ic.textContent='◆'; bt.textContent='PLAYING...';}
+  else                       {ic.textContent='▶'; bt.textContent='GENERATE';}
+}
+function showUI() {
+  ['voice-card','script-card','settings-card','action-row'].forEach(id=>{
+    document.getElementById(id).style.display='';
+  });
+  document.getElementById('status').style.display='flex';
+  document.getElementById('load-card').style.display='none';
+}
+
+// Load model
+document.getElementById('load-bar').style.width = '5%';
+document.getElementById('load-pct').textContent = 'Loading Kokoro AI...';
+
+KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
+  dtype: 'q4',
+  progress_callback: (p) => {
+    if (p && p.progress != null) {
+      const pct = Math.round(p.progress);
+      document.getElementById('load-bar').style.width = pct + '%';
+      document.getElementById('load-pct').textContent = `Downloading... ${pct}%`;
+    }
+  }
+}).then(model => {
+  tts = model;
+  document.getElementById('load-bar').style.width = '100%';
+  document.getElementById('load-pct').textContent = '✓ Model ready!';
+  setTimeout(showUI, 500);
+  setStatus('Ready — pick a voice and type your script!', '');
+}).catch(err => {
+  const el = document.getElementById('load-pct');
+  el.style.color = '#ff2d55';
+  if (/fetch|network|CORS/i.test(err.message)) {
+    el.textContent = '⚠ Blocked by browser — see the notice above to fix this';
+  } else {
+    el.textContent = '⚠ Failed: ' + err.message;
+  }
+});
+
+// Generate
+window.generate = async () => {
+  const text = txt.value.trim();
+  if (!text) { setStatus('⚠ Type your script first!', 'err'); return; }
+  if (!tts)  { setStatus('⚠ Model still loading...', 'err'); return; }
+
+  stopAudio();
+  audioBlob = null;
+  const dlBtn = document.getElementById('dl-btn');
+  dlBtn.disabled = true; dlBtn.className = 'dl-btn';
+  document.getElementById('player').classList.remove('show');
+
+  setBtn('running');
+  setStatus('⏳ Generating with ' + selName + '...', 'running');
+
+  try {
+    const speed = parseFloat(document.getElementById('speed').value);
+    const audio = await tts.generate(text, { voice: selVoice, speed });
+    const wav = audio.toWav();
+    audioBlob = new Blob([wav], {type:'audio/wav'});
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    audioUrl = URL.createObjectURL(audioBlob);
+
+    const player = document.getElementById('player');
+    player.src = audioUrl;
+    player.classList.add('show');
+
+    // AudioContext chain for loudspeaker + EQ + compressor
+    const arrayBuf = await audioBlob.arrayBuffer();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const decoded = await ctx.decodeAudioData(arrayBuf);
+    const source = ctx.createBufferSource();
+    source.buffer = decoded;
+
+    const clarityVal  = parseInt(document.getElementById('clarity').value);
+    const stabilityVal= parseInt(document.getElementById('stability').value);
+
+    const eq = ctx.createBiquadFilter();
+    eq.type = 'highshelf'; eq.frequency.value = 3000;
+    eq.gain.value = (clarityVal - 50) * 0.2;
+
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -24 + (stabilityVal * 0.24);
+    comp.knee.value = 10;
+    comp.ratio.value = 1 + (stabilityVal * 0.19);
+    comp.attack.value = 0.003;
+    comp.release.value = 0.1 + ((100 - stabilityVal) * 0.002);
+
+    source.connect(eq); eq.connect(comp); comp.connect(ctx.destination);
+    currentAudio = {source, ctx};
+    source.start(0);
+
+    setBtn('playing');
+    setStatus('🎙 Playing: ' + selName, 'playing');
+    dlBtn.disabled = false; dlBtn.className = 'dl-btn ready';
+
+    source.onended = () => {
+      setBtn(''); setStatus('✓ Done! Tap ↓ to download.', 'done');
+      ctx.close(); currentAudio = null;
+    };
+  } catch(err) {
+    setBtn(''); setStatus('⚠ ' + (err.message || err), 'err');
+  }
+};
+
+window.stopAudio = () => {
+  try {
+    if (currentAudio) { currentAudio.source.stop(); currentAudio.ctx.close(); currentAudio = null; }
+    const p = document.getElementById('player'); p.pause(); p.currentTime = 0;
+  } catch(e) {}
+  setBtn(''); setStatus('Stopped.', '');
+};
+
+window.dlAudio = () => {
+  if (!audioUrl) return;
+  const a = document.createElement('a');
+  a.href = audioUrl; a.download = 'tts-'+selName.toLowerCase()+'.wav';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+};
+</script>
+
+<!-- PWA install prompt (no service worker — needs HTTPS for that) -->
+<script>
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  setTimeout(() => {
+    if (!localStorage.getItem('pwa_dismissed'))
+      document.getElementById('install-banner').style.display = 'flex';
+  }, 4000);
+});
+window.installApp = async () => {
+  if (!deferredPrompt) {
+    alert('To install:\n\nAndroid Chrome: tap ⋮ menu → "Add to Home Screen"\niOS Safari: tap Share → "Add to Home Screen"');
+    return;
+  }
+  document.getElementById('install-banner').style.display = 'none';
+  deferredPrompt.prompt();
+  deferredPrompt = null;
+};
+window.dismissInstall = () => {
+  document.getElementById('install-banner').style.display = 'none';
+  localStorage.setItem('pwa_dismissed','1');
+};
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').style.display = 'none';
+});
+</script>
+</body>
+</html>
