@@ -3,7 +3,7 @@
 Free AI Voice Generator powered by Kokoro TTS. No API keys, no login required.
 
 ## Live App
-👉 https://Chuckq8.github.io/tts-studio
+👉 https://chuckq8.github.io/tts-studio
 
 ## Features
 - 12 AI voices (male & female)
@@ -14,4 +14,4 @@ Free AI Voice Generator powered by Kokoro TTS. No API keys, no login required.
 ## Deploy
 1. Fork or upload to a GitHub repo named `tts-studio`
 2. Go to Settings → Pages → Branch: main → Save
-3. Visit `https://Chuckq8.github.io/tts-studio`
+3. Visit `https://chuckq8.github.io/tts-studio`
