@@ -333,6 +333,11 @@ window.addEventListener('load', () => {
         <input type="range" id="stability" min="0" max="100" value="50"
           oninput="document.getElementById('stability-val').textContent=this.value+'%'">
       </div>
+      <div class="sl">
+        <div class="sl-label">Pause Between Sentences <b id="pause-val">0.4s</b> <span>Silence gap</span></div>
+        <input type="range" id="pause" min="0" max="2" step="0.1" value="0.4"
+          oninput="document.getElementById('pause-val').textContent=parseFloat(this.value).toFixed(1)+'s'">
+      </div>
     </div>
   </div>
 
@@ -418,7 +423,7 @@ const txt = document.getElementById('txt');
 txt.addEventListener('input', () => {
   const l = txt.value.length;
   const el = document.getElementById('cc');
-  el.textContent = l + ' / 500';
+  el.textContent = l + ' / 1000';
   el.className = 'char-count' + (l>900?' over':l>750?' warn':'');
 });
 window.tip = (t) => {
@@ -487,6 +492,25 @@ KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
   }
 });
 
+// Split text into sentences
+function splitSentences(text) {
+  // Split on . ! ? and newlines, keep the punctuation
+  const raw = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
+  return raw.map(s => s.trim()).filter(s => s.length > 0);
+}
+
+// Create silence buffer of given seconds
+function createSilence(ctx, seconds) {
+  const length = Math.floor(ctx.sampleRate * seconds);
+  return ctx.createBuffer(1, length, ctx.sampleRate);
+}
+
+// Decode wav blob to AudioBuffer
+async function decodeBlob(ctx, blob) {
+  const arrayBuf = await blob.arrayBuffer();
+  return await ctx.decodeAudioData(arrayBuf);
+}
+
 // Generate
 window.generate = async () => {
   const text = txt.value.trim();
@@ -500,30 +524,52 @@ window.generate = async () => {
   document.getElementById('player').classList.remove('show');
 
   setBtn('running');
-  setStatus('⏳ Generating with ' + selName + '...', 'running');
 
   try {
-    const speed = parseFloat(document.getElementById('speed').value);
-    const audio = await tts.generate(text, { voice: selVoice, speed });
-    const wav = audio.toWav();
-    audioBlob = new Blob([wav], {type:'audio/wav'});
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    audioUrl = URL.createObjectURL(audioBlob);
-
-    const player = document.getElementById('player');
-    player.src = audioUrl;
-    player.classList.add('show');
-
-    // AudioContext chain for loudspeaker + EQ + compressor
-    const arrayBuf = await audioBlob.arrayBuffer();
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const decoded = await ctx.decodeAudioData(arrayBuf);
-    const source = ctx.createBufferSource();
-    source.buffer = decoded;
-
+    const speed       = parseFloat(document.getElementById('speed').value);
     const clarityVal  = parseInt(document.getElementById('clarity').value);
     const stabilityVal= parseInt(document.getElementById('stability').value);
+    const pauseSecs   = parseFloat(document.getElementById('pause').value);
 
+    const sentences = splitSentences(text);
+    const total = sentences.length;
+
+    // Generate each sentence
+    const wavBlobs = [];
+    for (let i = 0; i < total; i++) {
+      setStatus(`⏳ Generating sentence ${i+1} of ${total}...`, 'running');
+      const audio = await tts.generate(sentences[i], { voice: selVoice, speed });
+      wavBlobs.push(new Blob([audio.toWav()], { type: 'audio/wav' }));
+    }
+
+    setStatus('🔗 Stitching audio...', 'running');
+
+    // Stitch everything into one AudioContext
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Decode all blobs
+    const buffers = [];
+    for (const blob of wavBlobs) {
+      buffers.push(await decodeBlob(ctx, blob));
+    }
+
+    // Calculate total length including pauses
+    const silenceLen = Math.floor(ctx.sampleRate * pauseSecs);
+    let totalLen = 0;
+    buffers.forEach(b => { totalLen += b.length; });
+    totalLen += silenceLen * (buffers.length - 1); // pauses between sentences
+
+    // Merge into one buffer
+    const merged = ctx.createBuffer(1, totalLen, ctx.sampleRate);
+    const out = merged.getChannelData(0);
+    let offset = 0;
+    buffers.forEach((b, i) => {
+      out.set(b.getChannelData(0), offset);
+      offset += b.length;
+      if (i < buffers.length - 1) offset += silenceLen; // add pause
+    });
+
+    // Apply EQ + compressor
     const eq = ctx.createBiquadFilter();
     eq.type = 'highshelf'; eq.frequency.value = 3000;
     eq.gain.value = (clarityVal - 50) * 0.2;
@@ -535,22 +581,60 @@ window.generate = async () => {
     comp.attack.value = 0.003;
     comp.release.value = 0.1 + ((100 - stabilityVal) * 0.002);
 
+    // Export merged buffer as WAV for download + audio player
+    const wavData = bufferToWav(merged);
+    audioBlob = new Blob([wavData], { type: 'audio/wav' });
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    audioUrl = URL.createObjectURL(audioBlob);
+
+    const player = document.getElementById('player');
+    player.src = audioUrl;
+    player.classList.add('show');
+    dlBtn.disabled = false; dlBtn.className = 'dl-btn ready';
+
+    // Play via AudioContext
+    const source = ctx.createBufferSource();
+    source.buffer = merged;
     source.connect(eq); eq.connect(comp); comp.connect(ctx.destination);
-    currentAudio = {source, ctx};
+    currentAudio = { source, ctx };
     source.start(0);
 
     setBtn('playing');
-    setStatus('🎙 Playing: ' + selName, 'playing');
-    dlBtn.disabled = false; dlBtn.className = 'dl-btn ready';
+    setStatus(`🎙 Playing ${total} sentence${total>1?'s':''} · ${selName}`, 'playing');
 
     source.onended = () => {
       setBtn(''); setStatus('✓ Done! Tap ↓ to download.', 'done');
       ctx.close(); currentAudio = null;
     };
+
   } catch(err) {
     setBtn(''); setStatus('⚠ ' + (err.message || err), 'err');
   }
 };
+
+// Convert AudioBuffer to WAV ArrayBuffer
+function bufferToWav(buffer) {
+  const numCh = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const length = buffer.length * numCh * 2;
+  const arrayBuf = new ArrayBuffer(44 + length);
+  const view = new DataView(arrayBuf);
+  const writeStr = (o, s) => { for (let i=0; i<s.length; i++) view.setUint8(o+i, s.charCodeAt(i)); };
+  writeStr(0,'RIFF'); view.setUint32(4, 36+length, true);
+  writeStr(8,'WAVE'); writeStr(12,'fmt ');
+  view.setUint32(16,16,true); view.setUint16(20,1,true);
+  view.setUint16(22,numCh,true); view.setUint32(24,sampleRate,true);
+  view.setUint32(28,sampleRate*numCh*2,true); view.setUint16(32,numCh*2,true);
+  view.setUint16(34,16,true); writeStr(36,'data');
+  view.setUint32(40,length,true);
+  const data = buffer.getChannelData(0);
+  let offset = 44;
+  for (let i=0; i<data.length; i++, offset+=2) {
+    const s = Math.max(-1, Math.min(1, data[i]));
+    view.setInt16(offset, s < 0 ? s*0x8000 : s*0x7FFF, true);
+  }
+  return arrayBuf;
+}
 
 window.stopAudio = () => {
   try {
