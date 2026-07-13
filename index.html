@@ -351,6 +351,17 @@ window.addEventListener('load', () => {
     <button class="dl-btn" id="dl-btn" onclick="dlAudio()" disabled>↓</button>
   </div>
 
+  <!-- Progress bar -->
+  <div id="progress-wrap" style="display:none;background:#1a1a1a;border:1px solid #242424;border-radius:10px;padding:12px 16px">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:8px">
+      <span id="progress-label">Generating...</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div style="height:3px;background:#242424;border-radius:2px;overflow:hidden">
+      <div id="progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#ff2d55,#00e5ff);border-radius:2px;transition:width .3s ease"></div>
+    </div>
+  </div>
+
   <div class="status" id="status" style="display:none">
     <span id="stxt">Ready!</span>
     <button class="stop-btn" id="stop-btn" onclick="stopAudio()">■ STOP</button>
@@ -534,13 +545,28 @@ window.generate = async () => {
     const sentences = splitSentences(text);
     const total = sentences.length;
 
-    // Generate all sentences in parallel
-    setStatus(`⏳ Generating ${total} sentence${total>1?'s':''} in parallel...`, 'running');
-    const wavBlobs = await Promise.all(
-      sentences.map(s => tts.generate(s, { voice: selVoice, speed })
-        .then(audio => new Blob([audio.toWav()], { type: 'audio/wav' }))
-      )
-    );
+    // Show progress bar
+    const progWrap = document.getElementById('progress-wrap');
+    const progBar  = document.getElementById('progress-bar');
+    const progLbl  = document.getElementById('progress-label');
+    const progPct  = document.getElementById('progress-pct');
+    progWrap.style.display = 'block';
+    progBar.style.width = '0%';
+
+    // Generate sentences one by one with live progress
+    const wavBlobs = [];
+    for (let i = 0; i < total; i++) {
+      const pct = Math.round((i / total) * 100);
+      progBar.style.width = pct + '%';
+      progPct.textContent = pct + '%';
+      progLbl.textContent = `Sentence ${i+1} of ${total}: "${sentences[i].slice(0,28)}${sentences[i].length>28?'...':''}"`;
+      setStatus(`⏳ ${i+1} / ${total} sentences done`, 'running');
+      const audio = await tts.generate(sentences[i], { voice: selVoice, speed });
+      wavBlobs.push(new Blob([audio.toWav()], { type: 'audio/wav' }));
+    }
+    progBar.style.width = '100%';
+    progPct.textContent = '100%';
+    progLbl.textContent = '✓ Stitching audio...';
 
     setStatus('🔗 Stitching audio...', 'running');
 
@@ -601,6 +627,7 @@ window.generate = async () => {
 
     setBtn('playing');
     setStatus(`🎙 Playing ${total} sentence${total>1?'s':''} · ${selName}`, 'playing');
+    document.getElementById('progress-wrap').style.display = 'none';
 
     source.onended = () => {
       setBtn(''); setStatus('✓ Done! Tap ↓ to download.', 'done');
@@ -608,7 +635,9 @@ window.generate = async () => {
     };
 
   } catch(err) {
-    setBtn(''); setStatus('⚠ ' + (err.message || err), 'err');
+    setBtn(''); 
+    setStatus('⚠ ' + (err.message || err), 'err');
+    document.getElementById('progress-wrap').style.display = 'none';
   }
 };
 
